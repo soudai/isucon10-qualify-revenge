@@ -17,7 +17,10 @@ CREATE TABLE isuumo.estate
     door_height INTEGER             NOT NULL,
     door_width  INTEGER             NOT NULL,
     features    VARCHAR(64)         NOT NULL,
-    popularity  INTEGER             NOT NULL
+    popularity  INTEGER             NOT NULL,
+    -- 空間INDEXを設定するために実体列を使ってカラムを追加（PostgreSQL)
+    point       point GENERATED ALWAYS AS
+        (POINT(latitude, longitude)) STORED
 );
 
 CREATE TABLE isuumo.chair
@@ -36,3 +39,14 @@ CREATE TABLE isuumo.chair
     popularity  INTEGER         NOT NULL,
     stock       INTEGER         NOT NULL
 );
+
+-- WHERE句狙いのINDEX
+CREATE INDEX idx_rent ON isuumo.estate(rent);
+CREATE INDEX idx_price_id ON isuumo.chair(price, id);
+
+-- popularityのORDER BY狙いのINDEX
+CREATE INDEX idx_popularity ON isuumo.estate(popularity DESC, id);
+CREATE INDEX idx_popularity ON isuumo.chair(popularity DESC, id);
+
+-- 空間INDEX
+CREATE INDEX idx_point ON isuumo.estate USING GIST(point);
