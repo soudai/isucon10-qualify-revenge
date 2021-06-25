@@ -36,9 +36,9 @@ make all
 
 ### remove log
 
-if [ -f /var/lib/mysql/mysqld-slow.log ]; then
-    #sudo mv /var/lib/mysql/mysqld-slow.log /var/lib/mysql/mysqld-slow.log.$(date "+%Y%m%d_%H%M%S")
-fi
+#if [ -f /var/lib/mysql/mysqld-slow.log ]; then
+#    #sudo mv /var/lib/mysql/mysqld-slow.log /var/lib/mysql/mysqld-slow.log.$(date "+%Y%m%d_%H%M%S")
+#fi
 if [ -f /home/isucon/isucon10-qualify-revenge/logs/access.log ]; then
     sudo mv /home/isucon/isucon10-qualify-revenge/logs/access.log /home/isucon/isucon10-qualify-revenge/logs/access.log.$(date "+%Y%m%d_%H%M%S")
 fi
