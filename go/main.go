@@ -18,6 +18,8 @@ import (
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 	"github.com/labstack/gommon/log"
+
+	_ "github.com/jackc/pgx/v4"
 )
 
 const Limit = 20
@@ -25,6 +27,7 @@ const NazotteLimit = 50
 
 var db *sqlx.DB
 var mySQLConnectionData *MySQLConnectionEnv
+var pgConnectionData *PgConnectionEnv
 var chairSearchCondition ChairSearchCondition
 var estateSearchCondition EstateSearchCondition
 
@@ -222,6 +225,34 @@ func (mc *MySQLConnectionEnv) ConnectDB() (*sqlx.DB, error) {
 	return sqlx.Open("mysql", dsn)
 }
 
+type PgConnectionEnv struct {
+	Host     string
+	Port     string
+	User     string
+	DBName   string
+	Password string
+}
+
+func NewPgConnectionEnv() *PgConnectionEnv {
+	return &PgConnectionEnv{
+		Host:     getEnv("PG_HOST", "127.0.0.1"),
+		Port:     getEnv("PG_PORT", "3306"),
+		User:     getEnv("PG_USER", "isucon"),
+		DBName:   getEnv("PG_DBNAME", "isuumo"),
+		Password: getEnv("PG_PASS", "isucon"),
+	}
+}
+
+//ConnectDB isuumoデータベースに接続する
+func (pc *PgConnectionEnv) ConnectDB() (*sqlx.DB, error) {
+	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s", pc.User, pc.Password, pc.Host, pc.Port, pc.DBName)
+	conn, err := sqlx.Connect("pgx", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to connect to database: %w", err)
+	}
+	return conn, nil
+}
+
 func init() {
 	jsonText, err := ioutil.ReadFile("../fixture/chair_condition.json")
 	if err != nil {
@@ -269,10 +300,12 @@ func main() {
 	e.GET("/api/estate/search/condition", getEstateSearchCondition)
 	e.GET("/api/recommended_estate/:id", searchRecommendedEstateWithChair)
 
-	mySQLConnectionData = NewMySQLConnectionEnv()
+	//mySQLConnectionData = NewMySQLConnectionEnv()
+	pgConnectionData := NewMySQLConnectionEnv()
 
 	var err error
-	db, err = mySQLConnectionData.ConnectDB()
+	//db, err = mySQLConnectionData.ConnectDB()
+	db, err := pgConnectionData.ConnectDB()
 	if err != nil {
 		e.Logger.Fatalf("DB connection failed : %v", err)
 	}
@@ -294,12 +327,12 @@ func initialize(c echo.Context) error {
 
 	for _, p := range paths {
 		sqlFile, _ := filepath.Abs(p)
-		cmdStr := fmt.Sprintf("mysql -h %v -u %v -p%v -P %v %v < %v",
-			mySQLConnectionData.Host,
-			mySQLConnectionData.User,
-			mySQLConnectionData.Password,
-			mySQLConnectionData.Port,
-			mySQLConnectionData.DBName,
+		cmdStr := fmt.Sprintf("PGPASSWORD=%v psql -h %v -U %v -p%v %v < %v",
+			pgConnectionData.Password,
+			pgConnectionData.Host,
+			pgConnectionData.User,
+			pgConnectionData.Port,
+			pgConnectionData.DBName,
 			sqlFile,
 		)
 		if err := exec.Command("bash", "-c", cmdStr).Run(); err != nil {
