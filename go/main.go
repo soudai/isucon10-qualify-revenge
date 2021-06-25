@@ -513,7 +513,7 @@ func searchChairs(c echo.Context) error {
 
 	if c.QueryParam("features") != "" {
 		for _, f := range strings.Split(c.QueryParam("features"), ",") {
-			conditions = append(conditions, fmt.Sprintf("features LIKE CONCAT('%%', %s, '%%')", f))
+			conditions = append(conditions, fmt.Sprintf("features LIKE CONCAT('%%', '%s', '%%')", f))
 		}
 	}
 
