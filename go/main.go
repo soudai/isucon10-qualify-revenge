@@ -327,12 +327,13 @@ func initialize(c echo.Context) error {
 
 	for _, p := range paths {
 		sqlFile, _ := filepath.Abs(p)
+		pcd := NewPgConnectionEnv()
 		cmdStr := fmt.Sprintf("PGPASSWORD=%v psql -h %v -U %v -p%v %v < %v",
-			pgConnectionData.Password,
-			pgConnectionData.Host,
-			pgConnectionData.User,
-			pgConnectionData.Port,
-			pgConnectionData.DBName,
+			pcd.Password,
+			pcd.Host,
+			pcd.User,
+			pcd.Port,
+			pcd.DBName,
 			sqlFile,
 		)
 		if err := exec.Command("bash", "-c", cmdStr).Run(); err != nil {
