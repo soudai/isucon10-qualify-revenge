@@ -2,7 +2,7 @@
 PHONY:
 restart:
 	ssh i1 "cd /home/isucon/isucon10-qualify-revenge && git pull"
-	ssh i1 "cd /home/isucon/isuumo/webapp/go && make isucon"
+	ssh i1 "cd /home/isucon/isuumo/webapp/go && make isuumo"
 	ssh i1 sudo systemctl restart isuumo.go.service
 	ssh i1 sudo systemctl status isuumo.go.service
 	ssh i1 sudo systemctl restart nginx.service
