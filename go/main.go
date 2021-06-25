@@ -18,6 +18,9 @@ import (
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 	"github.com/labstack/gommon/log"
+
+	_ "github.com/jackc/pgx/v4/stdlib"
+	_ "github.com/lib/pq"
 )
 
 const Limit = 20
@@ -25,6 +28,7 @@ const NazotteLimit = 50
 
 var db *sqlx.DB
 var mySQLConnectionData *MySQLConnectionEnv
+var pgConnectionData *PgConnectionEnv
 var chairSearchCondition ChairSearchCondition
 var estateSearchCondition EstateSearchCondition
 
@@ -222,15 +226,47 @@ func (mc *MySQLConnectionEnv) ConnectDB() (*sqlx.DB, error) {
 	return sqlx.Open("mysql", dsn)
 }
 
+type PgConnectionEnv struct {
+	Host     string
+	Port     string
+	User     string
+	DBName   string
+	Password string
+}
+
+func NewPgConnectionEnv() *PgConnectionEnv {
+	return &PgConnectionEnv{
+		Host:     getEnv("PG_HOST", "127.0.0.1"),
+		Port:     getEnv("PG_PORT", "3306"),
+		User:     getEnv("PG_USER", "isucon"),
+		DBName:   getEnv("PG_DBNAME", "isuumo"),
+		Password: getEnv("PG_PASS", "isucon"),
+	}
+}
+
+//ConnectDB isuumoデータベースに接続する
+func (pc *PgConnectionEnv) ConnectDB() (*sqlx.DB, error) {
+	//dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s", pc.User, pc.Password, pc.Host, pc.Port, pc.DBName)
+	dbinfo := fmt.Sprintf(
+		"user=%s password=%s dbname=%s host=%s port=%s sslmode=disable",
+		pc.User, pc.Password, pc.DBName, pc.Host, pc.Port,
+	    )
+	conn, err := sqlx.Connect("pgx", dbinfo)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to connect to database: %w", err)
+	}
+	return conn, nil
+}
+
 func init() {
-	jsonText, err := ioutil.ReadFile("../fixture/chair_condition.json")
+	jsonText, err := ioutil.ReadFile("/home/isucon/isuumo/webapp/fixture/chair_condition.json")
 	if err != nil {
 		fmt.Printf("%v\n", err)
 		os.Exit(1)
 	}
 	json.Unmarshal(jsonText, &chairSearchCondition)
 
-	jsonText, err = ioutil.ReadFile("../fixture/estate_condition.json")
+	jsonText, err = ioutil.ReadFile("/home/isucon/isuumo/webapp/fixture/estate_condition.json")
 	if err != nil {
 		fmt.Printf("%v\n", err)
 		os.Exit(1)
@@ -269,10 +305,12 @@ func main() {
 	e.GET("/api/estate/search/condition", getEstateSearchCondition)
 	e.GET("/api/recommended_estate/:id", searchRecommendedEstateWithChair)
 
-	mySQLConnectionData = NewMySQLConnectionEnv()
+	//mySQLConnectionData = NewMySQLConnectionEnv()
+	pgConnectionData = NewPgConnectionEnv()
 
 	var err error
-	db, err = mySQLConnectionData.ConnectDB()
+	//db, err = mySQLConnectionData.ConnectDB()
+	db, err := pgConnectionData.ConnectDB()
 	if err != nil {
 		e.Logger.Fatalf("DB connection failed : %v", err)
 	}
@@ -285,7 +323,7 @@ func main() {
 }
 
 func initialize(c echo.Context) error {
-	sqlDir := filepath.Join("..", "mysql", "db")
+	sqlDir := filepath.Join("/home/isucon/isuumo/webapp", "mysql", "db")
 	paths := []string{
 		filepath.Join(sqlDir, "0_Schema.sql"),
 		filepath.Join(sqlDir, "1_DummyEstateData.sql"),
@@ -294,14 +332,16 @@ func initialize(c echo.Context) error {
 
 	for _, p := range paths {
 		sqlFile, _ := filepath.Abs(p)
-		cmdStr := fmt.Sprintf("mysql -h %v -u %v -p%v -P %v %v < %v",
-			mySQLConnectionData.Host,
-			mySQLConnectionData.User,
-			mySQLConnectionData.Password,
-			mySQLConnectionData.Port,
-			mySQLConnectionData.DBName,
+		pcd := NewPgConnectionEnv()
+		cmdStr := fmt.Sprintf("PGPASSWORD=%v psql -h %v -U %v -p%v %v < %v",
+			pcd.Password,
+			pcd.Host,
+			pcd.User,
+			pcd.Port,
+			pcd.DBName,
 			sqlFile,
 		)
+		println(cmdStr)
 		if err := exec.Command("bash", "-c", cmdStr).Run(); err != nil {
 			c.Logger().Errorf("Initialize script error : %v", err)
 			return c.NoContent(http.StatusInternalServerError)
