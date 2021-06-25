@@ -34,6 +34,17 @@ git pull
 cd /home/isucon/isuumo/webapp/go
 make all
 
+### remove log
+
+if [ -f /var/lib/mysql/mysqld-slow.log ]; then
+    #sudo mv /var/lib/mysql/mysqld-slow.log /var/lib/mysql/mysqld-slow.log.$(date "+%Y%m%d_%H%M%S")
+fi
+if [ -f /home/isucon/isucon10-qualify-revenge/logs/access.log ]; then
+    sudo mv /home/isucon/isucon10-qualify-revenge/logs/access.log /home/isucon/isucon10-qualify-revenge/logs/access.log.$(date "+%Y%m%d_%H%M%S")
+fi
+
+### service restart
+
 sudo systemctl stop isuumo.go.service
 sudo systemctl start isuumo.go.service
 sudo systemctl status isuumo.go.service
