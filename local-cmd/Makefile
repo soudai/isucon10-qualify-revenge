@@ -1,3 +1,5 @@
+SHELL=/bin/bash
+
 .PHONY:
 restart:
 	ssh i1 "bash -c \"source ~/.bashrc && cd /home/isucon/isucon10-qualify-revenge/remote-cmd && make restart \""
