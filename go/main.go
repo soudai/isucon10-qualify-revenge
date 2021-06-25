@@ -356,7 +356,7 @@ func getChairDetail(c echo.Context) error {
 	}
 
 	chair := Chair{}
-	query := `SELECT * FROM isuumo.chair WHERE id = ?`
+	query := `SELECT * FROM isuumo.chair WHERE id = $1`
 	err = db.Get(&chair, query, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -416,7 +416,7 @@ func postChair(c echo.Context) error {
 			c.Logger().Errorf("failed to read record: %v", err)
 			return c.NoContent(http.StatusBadRequest)
 		}
-		_, err := tx.Exec("INSERT INTO chair(id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)", id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock)
+		_, err := tx.Exec("INSERT INTO chair(id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)", id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock)
 		if err != nil {
 			c.Logger().Errorf("failed to insert chair: %v", err)
 			return c.NoContent(http.StatusInternalServerError)
@@ -441,11 +441,11 @@ func searchChairs(c echo.Context) error {
 		}
 
 		if chairPrice.Min != -1 {
-			conditions = append(conditions, "price >= ?")
+			conditions = append(conditions, fmt.Sprintf("price >= $%d", len(conditions)+1))
 			params = append(params, chairPrice.Min)
 		}
 		if chairPrice.Max != -1 {
-			conditions = append(conditions, "price < ?")
+			conditions = append(conditions, fmt.Sprintf("price < $%d", len(conditions)+1))
 			params = append(params, chairPrice.Max)
 		}
 	}
@@ -458,11 +458,11 @@ func searchChairs(c echo.Context) error {
 		}
 
 		if chairHeight.Min != -1 {
-			conditions = append(conditions, "height >= ?")
+			conditions = append(conditions, fmt.Sprintf("height >= $%d", len(conditions)+1))
 			params = append(params, chairHeight.Min)
 		}
 		if chairHeight.Max != -1 {
-			conditions = append(conditions, "height < ?")
+			conditions = append(conditions, fmt.Sprintf("height < $%d", len(conditions)+1))
 			params = append(params, chairHeight.Max)
 		}
 	}
@@ -475,11 +475,11 @@ func searchChairs(c echo.Context) error {
 		}
 
 		if chairWidth.Min != -1 {
-			conditions = append(conditions, "width >= ?")
+			conditions = append(conditions, fmt.Sprintf("width >= $%d", len(conditions)+1))
 			params = append(params, chairWidth.Min)
 		}
 		if chairWidth.Max != -1 {
-			conditions = append(conditions, "width < ?")
+			conditions = append(conditions, fmt.Sprintf("width < $%d", len(conditions)+1))
 			params = append(params, chairWidth.Max)
 		}
 	}
@@ -492,28 +492,28 @@ func searchChairs(c echo.Context) error {
 		}
 
 		if chairDepth.Min != -1 {
-			conditions = append(conditions, "depth >= ?")
+			conditions = append(conditions, fmt.Sprintf("depth >= $%d", len(conditions)+1))
 			params = append(params, chairDepth.Min)
 		}
 		if chairDepth.Max != -1 {
-			conditions = append(conditions, "depth < ?")
+			conditions = append(conditions, fmt.Sprintf("depth < $%d", len(conditions)+1))
 			params = append(params, chairDepth.Max)
 		}
 	}
 
 	if c.QueryParam("kind") != "" {
-		conditions = append(conditions, "kind = ?")
+		conditions = append(conditions, fmt.Sprintf("kind = $%d", len(conditions)+1))
 		params = append(params, c.QueryParam("kind"))
 	}
 
 	if c.QueryParam("color") != "" {
-		conditions = append(conditions, "color = ?")
+		conditions = append(conditions, fmt.Sprintf("color = $%d", len(conditions)+1))
 		params = append(params, c.QueryParam("color"))
 	}
 
 	if c.QueryParam("features") != "" {
 		for _, f := range strings.Split(c.QueryParam("features"), ",") {
-			conditions = append(conditions, "features LIKE CONCAT('%', ?, '%')")
+			conditions = append(conditions, fmt.Sprintf("features LIKE CONCAT('%%', $%d, '%%')", len(conditions)+1))
 			params = append(params, f)
 		}
 	}
@@ -540,7 +540,8 @@ func searchChairs(c echo.Context) error {
 	searchQuery := "SELECT * FROM isuumo.chair WHERE "
 	countQuery := "SELECT COUNT(*) FROM isuumo.chair WHERE "
 	searchCondition := strings.Join(conditions, " AND ")
-	limitOffset := " ORDER BY popularity DESC, id ASC LIMIT ? OFFSET ?"
+	cndCnt := len(conditions)
+	limitOffset := fmt.Sprintf(" ORDER BY popularity DESC, id ASC LIMIT $%d OFFSET $%d", cndCnt+1, cndCnt+2)
 
 	var res ChairSearchResponse
 	err = db.Get(&res.Count, countQuery+searchCondition, params...)
@@ -592,7 +593,7 @@ func buyChair(c echo.Context) error {
 	defer tx.Rollback()
 
 	var chair Chair
-	err = tx.QueryRowx("SELECT * FROM isuumo.chair WHERE id = ? AND stock > 0 FOR UPDATE", id).StructScan(&chair)
+	err = tx.QueryRowx("SELECT * FROM isuumo.chair WHERE id = $1 AND stock > 0 FOR UPDATE", id).StructScan(&chair)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.Echo().Logger.Infof("buyChair chair id \"%v\" not found", id)
@@ -602,7 +603,7 @@ func buyChair(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	_, err = tx.Exec("UPDATE chair SET stock = stock - 1 WHERE id = ?", id)
+	_, err = tx.Exec("UPDATE chair SET stock = stock - 1 WHERE id = $1", id)
 	if err != nil {
 		c.Echo().Logger.Errorf("chair stock update failed : %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -623,7 +624,7 @@ func getChairSearchCondition(c echo.Context) error {
 
 func getLowPricedChair(c echo.Context) error {
 	var chairs []Chair
-	query := `SELECT * FROM isuumo.chair WHERE stock > 0 ORDER BY price ASC, id ASC LIMIT ?`
+	query := `SELECT * FROM isuumo.chair WHERE stock > 0 ORDER BY price ASC, id ASC LIMIT $1`
 	err := db.Select(&chairs, query, Limit)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -645,7 +646,7 @@ func getEstateDetail(c echo.Context) error {
 	}
 
 	var estate Estate
-	err = db.Get(&estate, "SELECT * FROM isuumo.estate WHERE id = ?", id)
+	err = db.Get(&estate, "SELECT * FROM isuumo.estate WHERE id = $1", id)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.Echo().Logger.Infof("getEstateDetail estate id %v not found", id)
@@ -713,7 +714,7 @@ func postEstate(c echo.Context) error {
 			c.Logger().Errorf("failed to read record: %v", err)
 			return c.NoContent(http.StatusBadRequest)
 		}
-		_, err := tx.Exec("INSERT INTO estate(id, name, description, thumbnail, address, latitude, longitude, rent, door_height, door_width, features, popularity) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", id, name, description, thumbnail, address, latitude, longitude, rent, doorHeight, doorWidth, features, popularity)
+		_, err := tx.Exec("INSERT INTO estate(id, name, description, thumbnail, address, latitude, longitude, rent, door_height, door_width, features, popularity) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)", id, name, description, thumbnail, address, latitude, longitude, rent, doorHeight, doorWidth, features, popularity)
 		if err != nil {
 			c.Logger().Errorf("failed to insert estate: %v", err)
 			return c.NoContent(http.StatusInternalServerError)
@@ -738,11 +739,11 @@ func searchEstates(c echo.Context) error {
 		}
 
 		if doorHeight.Min != -1 {
-			conditions = append(conditions, "door_height >= ?")
+			conditions = append(conditions, fmt.Sprintf("door_height >= $%d", len(conditions)+1))
 			params = append(params, doorHeight.Min)
 		}
 		if doorHeight.Max != -1 {
-			conditions = append(conditions, "door_height < ?")
+			conditions = append(conditions, fmt.Sprintf("door_height < $%d", len(conditions)+1))
 			params = append(params, doorHeight.Max)
 		}
 	}
@@ -755,11 +756,11 @@ func searchEstates(c echo.Context) error {
 		}
 
 		if doorWidth.Min != -1 {
-			conditions = append(conditions, "door_width >= ?")
+			conditions = append(conditions, fmt.Sprintf("door_width >= $%d", len(conditions)+1))
 			params = append(params, doorWidth.Min)
 		}
 		if doorWidth.Max != -1 {
-			conditions = append(conditions, "door_width < ?")
+			conditions = append(conditions, fmt.Sprintf("door_width < $%d", len(conditions)+1))
 			params = append(params, doorWidth.Max)
 		}
 	}
@@ -772,18 +773,18 @@ func searchEstates(c echo.Context) error {
 		}
 
 		if estateRent.Min != -1 {
-			conditions = append(conditions, "rent >= ?")
+			conditions = append(conditions, fmt.Sprintf("rent >= $%d", len(conditions)+1))
 			params = append(params, estateRent.Min)
 		}
 		if estateRent.Max != -1 {
-			conditions = append(conditions, "rent < ?")
+			conditions = append(conditions, fmt.Sprintf("rent < $%d", len(conditions)+1))
 			params = append(params, estateRent.Max)
 		}
 	}
 
 	if c.QueryParam("features") != "" {
 		for _, f := range strings.Split(c.QueryParam("features"), ",") {
-			conditions = append(conditions, "features like concat('%', ?, '%')")
+			conditions = append(conditions, fmt.Sprintf("features like concat('%%', $%d, '%%')", len(conditions)+1))
 			params = append(params, f)
 		}
 	}
@@ -808,7 +809,7 @@ func searchEstates(c echo.Context) error {
 	searchQuery := "SELECT * FROM isuumo.estate WHERE "
 	countQuery := "SELECT COUNT(*) FROM isuumo.estate WHERE "
 	searchCondition := strings.Join(conditions, " AND ")
-	limitOffset := " ORDER BY popularity DESC, id ASC LIMIT ? OFFSET ?"
+	limitOffset := fmt.Sprintf(" ORDER BY popularity DESC, id ASC LIMIT $%d OFFSET $%d", len(conditions)+1, len(conditions)+2)
 
 	var res EstateSearchResponse
 	err = db.Get(&res.Count, countQuery+searchCondition, params...)
@@ -835,7 +836,7 @@ func searchEstates(c echo.Context) error {
 
 func getLowPricedEstate(c echo.Context) error {
 	estates := make([]Estate, 0, Limit)
-	query := `SELECT * FROM isuumo.estate ORDER BY rent ASC, id ASC LIMIT ?`
+	query := `SELECT * FROM isuumo.estate ORDER BY rent ASC, id ASC LIMIT $1`
 	err := db.Select(&estates, query, Limit)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -857,7 +858,7 @@ func searchRecommendedEstateWithChair(c echo.Context) error {
 	}
 
 	chair := Chair{}
-	query := `SELECT * FROM isuumo.chair WHERE id = ?`
+	query := `SELECT * FROM isuumo.chair WHERE id = $1`
 	err = db.Get(&chair, query, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -872,7 +873,7 @@ func searchRecommendedEstateWithChair(c echo.Context) error {
 	w := chair.Width
 	h := chair.Height
 	d := chair.Depth
-	query = `SELECT * FROM isuumo.estate WHERE (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) ORDER BY popularity DESC, id ASC LIMIT ?`
+	query = `SELECT * FROM isuumo.estate WHERE (door_width >= $1 AND door_height >= $2) OR (door_width >= $3 AND door_height >= $4) OR (door_width >= $5 AND door_height >= $6) OR (door_width >= $7 AND door_height >= $8) OR (door_width >= $9 AND door_height >= $10) OR (door_width >= $11 AND door_height >= $12) ORDER BY popularity DESC, id ASC LIMIT $13`
 	err = db.Select(&estates, query, w, h, w, d, h, w, h, d, d, w, d, h, Limit)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -899,7 +900,7 @@ func searchEstateNazotte(c echo.Context) error {
 
 	b := coordinates.getBoundingBox()
 	estatesInBoundingBox := []Estate{}
-	query := `SELECT * FROM isuumo.estate WHERE latitude <= ? AND latitude >= ? AND longitude <= ? AND longitude >= ? ORDER BY popularity DESC, id ASC`
+	query := `SELECT * FROM isuumo.estate WHERE latitude <= $1 AND latitude >= $2 AND longitude <= $3 AND longitude >= $4 ORDER BY popularity DESC, id ASC`
 	err = db.Select(&estatesInBoundingBox, query, b.BottomRightCorner.Latitude, b.TopLeftCorner.Latitude, b.BottomRightCorner.Longitude, b.TopLeftCorner.Longitude)
 	if err == sql.ErrNoRows {
 		c.Echo().Logger.Infof("select * from estate where latitude ...", err)
@@ -914,7 +915,7 @@ func searchEstateNazotte(c echo.Context) error {
 		validatedEstate := Estate{}
 
 		point := fmt.Sprintf("'POINT(%f %f)'", estate.Latitude, estate.Longitude)
-		query := fmt.Sprintf(`SELECT * FROM isuumo.estate WHERE id = ? AND ST_Contains(ST_PolygonFromText(%s), ST_GeomFromText(%s))`, coordinates.coordinatesToText(), point)
+		query := fmt.Sprintf(`SELECT * FROM isuumo.estate WHERE id = $1 AND ST_Contains(ST_PolygonFromText(%s), ST_GeomFromText(%s))`, coordinates.coordinatesToText(), point)
 		err = db.Get(&validatedEstate, query, estate.ID)
 		if err != nil {
 			if err == sql.ErrNoRows {
@@ -960,7 +961,7 @@ func postEstateRequestDocument(c echo.Context) error {
 	}
 
 	estate := Estate{}
-	query := `SELECT * FROM isuumo.estate WHERE id = ?`
+	query := `SELECT * FROM isuumo.estate WHERE id = $1`
 	err = db.Get(&estate, query, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
