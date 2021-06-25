@@ -301,7 +301,7 @@ func main() {
 	e.GET("/api/recommended_estate/:id", searchRecommendedEstateWithChair)
 
 	//mySQLConnectionData = NewMySQLConnectionEnv()
-	pgConnectionData := NewPgConnectionEnv()
+	pgConnectionData = NewPgConnectionEnv()
 
 	var err error
 	//db, err = mySQLConnectionData.ConnectDB()
