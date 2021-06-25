@@ -20,7 +20,6 @@ import (
 	"github.com/labstack/gommon/log"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
-	_ "github.com/lib/pq"
 )
 
 const Limit = 20
