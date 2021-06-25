@@ -304,7 +304,7 @@ func main() {
 	// Echo instance
 	e := echo.New()
 	e.Debug = true
-	e.Logger.SetLevel(log.DEBUG)
+	e.Logger.SetLevel(log.ERROR)
 
 	// Middleware
 	e.Use(middleware.Logger())
@@ -342,6 +342,10 @@ func main() {
 	}
 	db.SetMaxOpenConns(10)
 	defer db.Close()
+
+	go func() {
+		e.Logger.Printf("%s\n", http.ListenAndServe("localhost:6060", nil))
+	}()
 
 	// Start server
 	serverPort := fmt.Sprintf(":%v", getEnv("SERVER_PORT", "1323"))
