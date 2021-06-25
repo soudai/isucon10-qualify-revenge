@@ -19,8 +19,8 @@ CREATE TABLE isuumo.estate
     features    VARCHAR(64)         NOT NULL,
     popularity  INTEGER             NOT NULL,
     -- 空間INDEXを設定するために実体列を使ってカラムを追加（PostgreSQL)
-    point       point GENERATED ALWAYS AS
-        (POINT(latitude, longitude)) STORED
+    point       geometry GENERATED ALWAYS AS
+        (POINT(latitude, longitude)::geometry) STORED
 );
 
 CREATE TABLE isuumo.chair
