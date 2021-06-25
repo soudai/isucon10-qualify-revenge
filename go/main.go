@@ -51,6 +51,22 @@ type Chair struct {
 	Stock       int64  `db:"stock" json:"-"`
 }
 
+var chairColumns = strings.Join([]string{
+	"id",
+	"name",
+	"description",
+	"thumbnail",
+	"price",
+	"height",
+	"width",
+	"depth",
+	"color",
+	"features",
+	"kind",
+	"popularity",
+	"stock",
+}, ",")
+
 type ChairSearchResponse struct {
 	Count  int64   `json:"count"`
 	Chairs []Chair `json:"chairs"`
@@ -75,6 +91,21 @@ type Estate struct {
 	Features    string  `db:"features" json:"features"`
 	Popularity  int64   `db:"popularity" json:"-"`
 }
+
+var estateColumns = strings.Join([]string{
+	"id",
+	"thumbnail",
+	"name",
+	"description",
+	"latitude",
+	"longitude",
+	"address",
+	"rent",
+	"door_height",
+	"door_width",
+	"features",
+	"popularity",
+}, ",")
 
 //EstateSearchResponse estate/searchへのレスポンスの形式
 type EstateSearchResponse struct {
@@ -356,7 +387,7 @@ func getChairDetail(c echo.Context) error {
 	}
 
 	chair := Chair{}
-	query := `SELECT * FROM isuumo.chair WHERE id = $1`
+	query := fmt.Sprintf(`SELECT %s FROM isuumo.chair WHERE id = $1`, chairColumns)
 	err = db.Get(&chair, query, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -536,7 +567,7 @@ func searchChairs(c echo.Context) error {
 		return c.NoContent(http.StatusBadRequest)
 	}
 
-	searchQuery := "SELECT * FROM isuumo.chair WHERE "
+	searchQuery := fmt.Sprintf("SELECT %s FROM isuumo.chair WHERE ", chairColumns)
 	countQuery := "SELECT COUNT(*) FROM isuumo.chair WHERE "
 	searchCondition := strings.Join(conditions, " AND ")
 	limitOffset := fmt.Sprintf(" ORDER BY popularity DESC, id ASC LIMIT $%d OFFSET $%d", len(params)+1, len(params)+2)
@@ -591,7 +622,7 @@ func buyChair(c echo.Context) error {
 	defer tx.Rollback()
 
 	var chair Chair
-	err = tx.QueryRowx("SELECT * FROM isuumo.chair WHERE id = $1 AND stock > 0 FOR UPDATE", id).StructScan(&chair)
+	err = tx.QueryRowx(fmt.Sprintf("SELECT %s FROM isuumo.chair WHERE id = $1 AND stock > 0 FOR UPDATE", chairColumns), id).StructScan(&chair)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.Echo().Logger.Infof("buyChair chair id \"%v\" not found", id)
@@ -622,7 +653,7 @@ func getChairSearchCondition(c echo.Context) error {
 
 func getLowPricedChair(c echo.Context) error {
 	var chairs []Chair
-	query := `SELECT * FROM isuumo.chair WHERE stock > 0 ORDER BY price ASC, id ASC LIMIT $1`
+	query := fmt.Sprintf(`SELECT %s FROM isuumo.chair WHERE stock > 0 ORDER BY price ASC, id ASC LIMIT $1`, chairColumns)
 	err := db.Select(&chairs, query, Limit)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -644,7 +675,7 @@ func getEstateDetail(c echo.Context) error {
 	}
 
 	var estate Estate
-	err = db.Get(&estate, "SELECT * FROM isuumo.estate WHERE id = $1", id)
+	err = db.Get(&estate, fmt.Sprintf("SELECT %s FROM isuumo.estate WHERE id = $1", estateColumns), id)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.Echo().Logger.Infof("getEstateDetail estate id %v not found", id)
@@ -803,7 +834,7 @@ func searchEstates(c echo.Context) error {
 		return c.NoContent(http.StatusBadRequest)
 	}
 
-	searchQuery := "SELECT * FROM isuumo.estate WHERE "
+	searchQuery := fmt.Sprintf("SELECT %s FROM isuumo.estate WHERE ", estateColumns)
 	countQuery := "SELECT COUNT(*) FROM isuumo.estate WHERE "
 	searchCondition := strings.Join(conditions, " AND ")
 	limitOffset := fmt.Sprintf(" ORDER BY popularity DESC, id ASC LIMIT $%d OFFSET $%d", len(params)+1, len(params)+2)
@@ -833,7 +864,7 @@ func searchEstates(c echo.Context) error {
 
 func getLowPricedEstate(c echo.Context) error {
 	estates := make([]Estate, 0, Limit)
-	query := `SELECT * FROM isuumo.estate ORDER BY rent ASC, id ASC LIMIT $1`
+	query := fmt.Sprintf(`SELECT %s FROM isuumo.estate ORDER BY rent ASC, id ASC LIMIT $1`, estateColumns)
 	err := db.Select(&estates, query, Limit)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -855,7 +886,7 @@ func searchRecommendedEstateWithChair(c echo.Context) error {
 	}
 
 	chair := Chair{}
-	query := `SELECT * FROM isuumo.chair WHERE id = $1`
+	query := fmt.Sprintf(`SELECT %s FROM isuumo.chair WHERE id = $1`, chairColumns)
 	err = db.Get(&chair, query, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -870,7 +901,7 @@ func searchRecommendedEstateWithChair(c echo.Context) error {
 	w := chair.Width
 	h := chair.Height
 	d := chair.Depth
-	query = `SELECT * FROM isuumo.estate WHERE (door_width >= $1 AND door_height >= $2) OR (door_width >= $3 AND door_height >= $4) OR (door_width >= $5 AND door_height >= $6) OR (door_width >= $7 AND door_height >= $8) OR (door_width >= $9 AND door_height >= $10) OR (door_width >= $11 AND door_height >= $12) ORDER BY popularity DESC, id ASC LIMIT $13`
+	query = fmt.Sprintf(`SELECT %s FROM isuumo.estate WHERE (door_width >= $1 AND door_height >= $2) OR (door_width >= $3 AND door_height >= $4) OR (door_width >= $5 AND door_height >= $6) OR (door_width >= $7 AND door_height >= $8) OR (door_width >= $9 AND door_height >= $10) OR (door_width >= $11 AND door_height >= $12) ORDER BY popularity DESC, id ASC LIMIT $13`, estateColumns)
 	err = db.Select(&estates, query, w, h, w, d, h, w, h, d, d, w, d, h, Limit)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -897,7 +928,7 @@ func searchEstateNazotte(c echo.Context) error {
 
 	b := coordinates.getBoundingBox()
 	estatesInBoundingBox := []Estate{}
-	query := `SELECT * FROM isuumo.estate WHERE latitude <= $1 AND latitude >= $2 AND longitude <= $3 AND longitude >= $4 ORDER BY popularity DESC, id ASC`
+	query := fmt.Sprintf(`SELECT %s FROM isuumo.estate WHERE latitude <= $1 AND latitude >= $2 AND longitude <= $3 AND longitude >= $4 ORDER BY popularity DESC, id ASC`, estateColumns)
 	err = db.Select(&estatesInBoundingBox, query, b.BottomRightCorner.Latitude, b.TopLeftCorner.Latitude, b.BottomRightCorner.Longitude, b.TopLeftCorner.Longitude)
 	if err == sql.ErrNoRows {
 		c.Echo().Logger.Infof("select * from estate where latitude ...", err)
@@ -912,7 +943,7 @@ func searchEstateNazotte(c echo.Context) error {
 		validatedEstate := Estate{}
 
 		point := fmt.Sprintf("'POINT(%f %f)'", estate.Latitude, estate.Longitude)
-		query := fmt.Sprintf(`SELECT * FROM isuumo.estate WHERE id = $1 AND ST_Contains(ST_PolygonFromText(%s), ST_GeomFromText(%s))`, coordinates.coordinatesToText(), point)
+		query := fmt.Sprintf(`SELECT %s FROM isuumo.estate WHERE id = $1 AND ST_Contains(ST_PolygonFromText(%s), ST_GeomFromText(%s))`, estateColumns, coordinates.coordinatesToText(), point)
 		err = db.Get(&validatedEstate, query, estate.ID)
 		if err != nil {
 			if err == sql.ErrNoRows {
@@ -958,7 +989,7 @@ func postEstateRequestDocument(c echo.Context) error {
 	}
 
 	estate := Estate{}
-	query := `SELECT * FROM isuumo.estate WHERE id = $1`
+	query := fmt.Sprintf(`SELECT %s FROM isuumo.estate WHERE id = $1`, estateColumns)
 	err = db.Get(&estate, query, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
