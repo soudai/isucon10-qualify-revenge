@@ -1,0 +1,14 @@
+
+Host i1
+        HostName 3.113.223.149
+        User isucon
+
+Host i2
+        HostName 54.150.202.163
+        User isucon
+
+Host i3
+        HostName 54.168.249.26
+        User isucon
+
+
