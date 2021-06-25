@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	_ "net/http/pprof"
+	"net/http/pprof"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -332,6 +332,13 @@ func main() {
 	e.GET("/api/estate/search/condition", getEstateSearchCondition)
 	e.GET("/api/recommended_estate/:id", searchRecommendedEstateWithChair)
 
+	pprofGroup := e.Group("/debug/pprof")
+	pprofGroup.Any("/cmdline", echo.WrapHandler(http.HandlerFunc(pprof.Cmdline)))
+	pprofGroup.Any("/profile", echo.WrapHandler(http.HandlerFunc(pprof.Profile)))
+	pprofGroup.Any("/symbol", echo.WrapHandler(http.HandlerFunc(pprof.Symbol)))
+	pprofGroup.Any("/trace", echo.WrapHandler(http.HandlerFunc(pprof.Trace)))
+	pprofGroup.Any("/*", echo.WrapHandler(http.HandlerFunc(pprof.Index)))
+
 	//mySQLConnectionData = NewMySQLConnectionEnv()
 	pgConnectionData = NewPgConnectionEnv()
 
@@ -343,10 +350,6 @@ func main() {
 	}
 	db.SetMaxOpenConns(10)
 	defer db.Close()
-
-	go func() {
-		e.Logger.Printf("%s\n", http.ListenAndServe("localhost:6060", nil))
-	}()
 
 	// Start server
 	serverPort := fmt.Sprintf(":%v", getEnv("SERVER_PORT", "1323"))
