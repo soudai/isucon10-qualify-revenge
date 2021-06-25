@@ -254,14 +254,14 @@ func (pc *PgConnectionEnv) ConnectDB() (*sqlx.DB, error) {
 }
 
 func init() {
-	jsonText, err := ioutil.ReadFile("../fixture/chair_condition.json")
+	jsonText, err := ioutil.ReadFile("/home/isucon/isuumo/webapp/fixture/chair_condition.json")
 	if err != nil {
 		fmt.Printf("%v\n", err)
 		os.Exit(1)
 	}
 	json.Unmarshal(jsonText, &chairSearchCondition)
 
-	jsonText, err = ioutil.ReadFile("../fixture/estate_condition.json")
+	jsonText, err = ioutil.ReadFile("/home/isucon/isuumo/webapp/fixture/estate_condition.json")
 	if err != nil {
 		fmt.Printf("%v\n", err)
 		os.Exit(1)
