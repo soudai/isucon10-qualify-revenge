@@ -310,7 +310,7 @@ func main() {
 
 	var err error
 	//db, err = mySQLConnectionData.ConnectDB()
-	db, err := pgConnectionData.ConnectDB()
+	db, err = pgConnectionData.ConnectDB()
 	if err != nil {
 		e.Logger.Fatalf("DB connection failed : %v", err)
 	}
