@@ -20,6 +20,7 @@ import (
 	"github.com/labstack/gommon/log"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
+	_ "github.com/lib/pq"
 )
 
 const Limit = 20
@@ -245,8 +246,12 @@ func NewPgConnectionEnv() *PgConnectionEnv {
 
 //ConnectDB isuumoデータベースに接続する
 func (pc *PgConnectionEnv) ConnectDB() (*sqlx.DB, error) {
-	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s", pc.User, pc.Password, pc.Host, pc.Port, pc.DBName)
-	conn, err := sqlx.Connect("pgx", dsn)
+	//dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s", pc.User, pc.Password, pc.Host, pc.Port, pc.DBName)
+	dbinfo := fmt.Sprintf(
+		"user=%s password=%s dbname=%s host=%s port=%s sslmode=disable",
+		pc.User, pc.Password, pc.DBName, pc.Host, pc.Port,
+	    )
+	conn, err := sqlx.Connect("pgx", dbinfo)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to connect to database: %w", err)
 	}
@@ -336,6 +341,7 @@ func initialize(c echo.Context) error {
 			pcd.DBName,
 			sqlFile,
 		)
+		println(cmdStr)
 		if err := exec.Command("bash", "-c", cmdStr).Run(); err != nil {
 			c.Logger().Errorf("Initialize script error : %v", err)
 			return c.NoContent(http.StatusInternalServerError)
