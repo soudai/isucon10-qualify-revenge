@@ -416,7 +416,7 @@ func postChair(c echo.Context) error {
 			c.Logger().Errorf("failed to read record: %v", err)
 			return c.NoContent(http.StatusBadRequest)
 		}
-		_, err := tx.Exec("INSERT INTO chair(id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)", id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock)
+		_, err := tx.Exec("INSERT INTO isuumo.chair(id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)", id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock)
 		if err != nil {
 			c.Logger().Errorf("failed to insert chair: %v", err)
 			return c.NoContent(http.StatusInternalServerError)
@@ -441,11 +441,11 @@ func searchChairs(c echo.Context) error {
 		}
 
 		if chairPrice.Min != -1 {
-			conditions = append(conditions, fmt.Sprintf("price >= $%d", len(conditions)+1))
+			conditions = append(conditions, fmt.Sprintf("price >= $%d", len(params)+1))
 			params = append(params, chairPrice.Min)
 		}
 		if chairPrice.Max != -1 {
-			conditions = append(conditions, fmt.Sprintf("price < $%d", len(conditions)+1))
+			conditions = append(conditions, fmt.Sprintf("price < $%d", len(params)+1))
 			params = append(params, chairPrice.Max)
 		}
 	}
@@ -458,11 +458,11 @@ func searchChairs(c echo.Context) error {
 		}
 
 		if chairHeight.Min != -1 {
-			conditions = append(conditions, fmt.Sprintf("height >= $%d", len(conditions)+1))
+			conditions = append(conditions, fmt.Sprintf("height >= $%d", len(params)+1))
 			params = append(params, chairHeight.Min)
 		}
 		if chairHeight.Max != -1 {
-			conditions = append(conditions, fmt.Sprintf("height < $%d", len(conditions)+1))
+			conditions = append(conditions, fmt.Sprintf("height < $%d", len(params)+1))
 			params = append(params, chairHeight.Max)
 		}
 	}
@@ -475,11 +475,11 @@ func searchChairs(c echo.Context) error {
 		}
 
 		if chairWidth.Min != -1 {
-			conditions = append(conditions, fmt.Sprintf("width >= $%d", len(conditions)+1))
+			conditions = append(conditions, fmt.Sprintf("width >= $%d", len(params)+1))
 			params = append(params, chairWidth.Min)
 		}
 		if chairWidth.Max != -1 {
-			conditions = append(conditions, fmt.Sprintf("width < $%d", len(conditions)+1))
+			conditions = append(conditions, fmt.Sprintf("width < $%d", len(params)+1))
 			params = append(params, chairWidth.Max)
 		}
 	}
@@ -492,29 +492,28 @@ func searchChairs(c echo.Context) error {
 		}
 
 		if chairDepth.Min != -1 {
-			conditions = append(conditions, fmt.Sprintf("depth >= $%d", len(conditions)+1))
+			conditions = append(conditions, fmt.Sprintf("depth >= $%d", len(params)+1))
 			params = append(params, chairDepth.Min)
 		}
 		if chairDepth.Max != -1 {
-			conditions = append(conditions, fmt.Sprintf("depth < $%d", len(conditions)+1))
+			conditions = append(conditions, fmt.Sprintf("depth < $%d", len(params)+1))
 			params = append(params, chairDepth.Max)
 		}
 	}
 
 	if c.QueryParam("kind") != "" {
-		conditions = append(conditions, fmt.Sprintf("kind = $%d", len(conditions)+1))
+		conditions = append(conditions, fmt.Sprintf("kind = $%d", len(params)+1))
 		params = append(params, c.QueryParam("kind"))
 	}
 
 	if c.QueryParam("color") != "" {
-		conditions = append(conditions, fmt.Sprintf("color = $%d", len(conditions)+1))
+		conditions = append(conditions, fmt.Sprintf("color = $%d", len(params)+1))
 		params = append(params, c.QueryParam("color"))
 	}
 
 	if c.QueryParam("features") != "" {
 		for _, f := range strings.Split(c.QueryParam("features"), ",") {
-			conditions = append(conditions, fmt.Sprintf("features LIKE CONCAT('%%', $%d, '%%')", len(conditions)+1))
-			params = append(params, f)
+			conditions = append(conditions, fmt.Sprintf("features LIKE CONCAT('%%', %s, '%%')", f))
 		}
 	}
 
@@ -540,8 +539,7 @@ func searchChairs(c echo.Context) error {
 	searchQuery := "SELECT * FROM isuumo.chair WHERE "
 	countQuery := "SELECT COUNT(*) FROM isuumo.chair WHERE "
 	searchCondition := strings.Join(conditions, " AND ")
-	cndCnt := len(conditions)
-	limitOffset := fmt.Sprintf(" ORDER BY popularity DESC, id ASC LIMIT $%d OFFSET $%d", cndCnt+1, cndCnt+2)
+	limitOffset := fmt.Sprintf(" ORDER BY popularity DESC, id ASC LIMIT $%d OFFSET $%d", len(params)+1, len(params)+2)
 
 	var res ChairSearchResponse
 	err = db.Get(&res.Count, countQuery+searchCondition, params...)
@@ -603,7 +601,7 @@ func buyChair(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	_, err = tx.Exec("UPDATE chair SET stock = stock - 1 WHERE id = $1", id)
+	_, err = tx.Exec("UPDATE isuumo.chair SET stock = stock - 1 WHERE id = $1", id)
 	if err != nil {
 		c.Echo().Logger.Errorf("chair stock update failed : %v", err)
 		return c.NoContent(http.StatusInternalServerError)
@@ -714,7 +712,7 @@ func postEstate(c echo.Context) error {
 			c.Logger().Errorf("failed to read record: %v", err)
 			return c.NoContent(http.StatusBadRequest)
 		}
-		_, err := tx.Exec("INSERT INTO estate(id, name, description, thumbnail, address, latitude, longitude, rent, door_height, door_width, features, popularity) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)", id, name, description, thumbnail, address, latitude, longitude, rent, doorHeight, doorWidth, features, popularity)
+		_, err := tx.Exec("INSERT INTO isuumo.estate(id, name, description, thumbnail, address, latitude, longitude, rent, door_height, door_width, features, popularity) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)", id, name, description, thumbnail, address, latitude, longitude, rent, doorHeight, doorWidth, features, popularity)
 		if err != nil {
 			c.Logger().Errorf("failed to insert estate: %v", err)
 			return c.NoContent(http.StatusInternalServerError)
@@ -739,11 +737,11 @@ func searchEstates(c echo.Context) error {
 		}
 
 		if doorHeight.Min != -1 {
-			conditions = append(conditions, fmt.Sprintf("door_height >= $%d", len(conditions)+1))
+			conditions = append(conditions, fmt.Sprintf("door_height >= $%d", len(params)+1))
 			params = append(params, doorHeight.Min)
 		}
 		if doorHeight.Max != -1 {
-			conditions = append(conditions, fmt.Sprintf("door_height < $%d", len(conditions)+1))
+			conditions = append(conditions, fmt.Sprintf("door_height < $%d", len(params)+1))
 			params = append(params, doorHeight.Max)
 		}
 	}
@@ -756,11 +754,11 @@ func searchEstates(c echo.Context) error {
 		}
 
 		if doorWidth.Min != -1 {
-			conditions = append(conditions, fmt.Sprintf("door_width >= $%d", len(conditions)+1))
+			conditions = append(conditions, fmt.Sprintf("door_width >= $%d", len(params)+1))
 			params = append(params, doorWidth.Min)
 		}
 		if doorWidth.Max != -1 {
-			conditions = append(conditions, fmt.Sprintf("door_width < $%d", len(conditions)+1))
+			conditions = append(conditions, fmt.Sprintf("door_width < $%d", len(params)+1))
 			params = append(params, doorWidth.Max)
 		}
 	}
@@ -773,19 +771,18 @@ func searchEstates(c echo.Context) error {
 		}
 
 		if estateRent.Min != -1 {
-			conditions = append(conditions, fmt.Sprintf("rent >= $%d", len(conditions)+1))
+			conditions = append(conditions, fmt.Sprintf("rent >= $%d", len(params)+1))
 			params = append(params, estateRent.Min)
 		}
 		if estateRent.Max != -1 {
-			conditions = append(conditions, fmt.Sprintf("rent < $%d", len(conditions)+1))
+			conditions = append(conditions, fmt.Sprintf("rent < $%d", len(params)+1))
 			params = append(params, estateRent.Max)
 		}
 	}
 
 	if c.QueryParam("features") != "" {
 		for _, f := range strings.Split(c.QueryParam("features"), ",") {
-			conditions = append(conditions, fmt.Sprintf("features like concat('%%', $%d, '%%')", len(conditions)+1))
-			params = append(params, f)
+			conditions = append(conditions, fmt.Sprintf("features like concat('%%', '%s', '%%')", f))
 		}
 	}
 
@@ -809,7 +806,7 @@ func searchEstates(c echo.Context) error {
 	searchQuery := "SELECT * FROM isuumo.estate WHERE "
 	countQuery := "SELECT COUNT(*) FROM isuumo.estate WHERE "
 	searchCondition := strings.Join(conditions, " AND ")
-	limitOffset := fmt.Sprintf(" ORDER BY popularity DESC, id ASC LIMIT $%d OFFSET $%d", len(conditions)+1, len(conditions)+2)
+	limitOffset := fmt.Sprintf(" ORDER BY popularity DESC, id ASC LIMIT $%d OFFSET $%d", len(params)+1, len(params)+2)
 
 	var res EstateSearchResponse
 	err = db.Get(&res.Count, countQuery+searchCondition, params...)
