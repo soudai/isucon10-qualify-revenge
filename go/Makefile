@@ -8,4 +8,4 @@ isuumo: *.go
 
 .PHONY:
 clean:
-	rm isuumo
+	-rm isuumo
